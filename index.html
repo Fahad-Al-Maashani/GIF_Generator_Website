@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GIFSnap — Website to GIF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080810;
+      --surface: #0f0f1a;
+      --card: #13131f;
+      --border: rgba(255,255,255,0.07);
+      --accent: #7c6dfa;
+      --accent2: #fa6d9a;
+      --text: #f0eeff;
+      --muted: rgba(240,238,255,0.45);
+      --mono: 'DM Mono', monospace;
+      --sans: 'Syne', sans-serif;
+      --green: #28c840;
+      --red: #fa4d4d;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.5;
+    }
+
+    .blob { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
+    .blob-1 { width: 600px; height: 600px; background: rgba(124,109,250,0.12); top: -200px; left: -150px; }
+    .blob-2 { width: 500px; height: 500px; background: rgba(250,109,154,0.08); bottom: -150px; right: -100px; }
+
+    .wrapper {
+      position: relative; z-index: 1;
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+      padding: 40px 24px 80px;
+    }
+
+    /* ─── Header ─── */
+    header { text-align: center; margin-bottom: 36px; }
+    .logo { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .logo-name {
+      font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    h1 { font-size: clamp(36px, 6vw, 64px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin-bottom: 12px; }
+    h1 span {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .subtitle { font-size: 15px; color: var(--muted); font-family: var(--mono); }
+
+    /* ─── Mode Tabs ─── */
+    .mode-tabs {
+      display: flex; gap: 4px; margin-bottom: 28px;
+      background: var(--surface); border-radius: 12px; padding: 4px;
+      border: 1px solid var(--border);
+    }
+    .mode-tab {
+      padding: 10px 24px; border-radius: 9px; border: none;
+      font-family: var(--sans); font-size: 14px; font-weight: 700;
+      cursor: pointer; color: var(--muted); background: transparent;
+      transition: all 0.2s;
+    }
+    .mode-tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .mode-tab:hover:not(.active) { color: var(--text); }
+
+    /* ─── Shared Styles ─── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; backdrop-filter: blur(10px);
+    }
+    .btn {
+      border: none; border-radius: 10px; padding: 10px 20px;
+      font-family: var(--sans); font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+    .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+    .btn-danger { background: rgba(250,77,77,0.15); border: 1px solid rgba(250,77,77,0.3); color: var(--red); }
+    .btn-green { background: rgba(40,200,64,0.15); border: 1px solid rgba(40,200,64,0.3); color: var(--green); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 7px; }
+
+    .input-field {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 16px; font-size: 14px; font-family: var(--mono);
+      color: var(--text); outline: none; width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-field::placeholder { color: rgba(240,238,255,0.25); }
+    .input-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,109,250,0.15); }
+
+    .select-field {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 5px 10px; color: var(--text); font-family: var(--mono);
+      font-size: 13px; outline: none; cursor: pointer;
+    }
+
+    .label { font-size: 12px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.5px; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(124,109,250,0.3); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-bar {
+      display: none; align-items: center; gap: 10px; margin-top: 16px;
+      padding: 12px 16px; border-radius: 10px;
+      font-family: var(--mono); font-size: 13px;
+      background: rgba(124,109,250,0.08); border: 1px solid rgba(124,109,250,0.2); color: var(--accent);
+    }
+    .status-bar.visible { display: flex; }
+    .status-bar.error { background: rgba(250,77,77,0.08); border-color: rgba(250,77,77,0.2); color: var(--red); }
+
+    /* ─── Quick Generate Panel ─── */
+    #quickPanel { width: 100%; max-width: 680px; }
+    #quickPanel .input-row { display: flex; gap: 10px; }
+    #quickPanel .input-row .input-field { flex: 1; }
+    #quickPanel .options-row { display: flex; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+    #quickPanel .option { display: flex; align-items: center; gap: 6px; font-size: 13px; font-family: var(--mono); color: var(--muted); }
+
+    .progress-wrap { display: none; width: 100%; height: 3px; background: var(--border); border-radius: 2px; margin-top: 12px; overflow: hidden; }
+    .progress-wrap.visible { display: block; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
+
+    /* ─── Studio Panel ─── */
+    #studioPanel { display: none; width: 100%; max-width: 1200px; }
+    #studioPanel.visible { display: block; }
+
+    .studio-url-row { display: flex; gap: 10px; margin-bottom: 20px; }
+    .studio-url-row .input-field { flex: 1; }
+
+    .studio-layout { display: grid; grid-template-columns: 220px 1fr; gap: 20px; margin-bottom: 20px; }
+
+    /* Minimap */
+    .minimap-panel { display: flex; flex-direction: column; gap: 12px; }
+    .minimap-container {
+      position: relative; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; cursor: crosshair;
+    }
+    .minimap-container img { width: 100%; display: block; }
+    .minimap-viewport {
+      position: absolute; border: 2px solid var(--accent);
+      background: rgba(124,109,250,0.08);
+      pointer-events: none; border-radius: 3px;
+      transition: top 0.1s, left 0.1s;
+    }
+    .minimap-coords {
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+      text-align: center; padding: 4px;
+    }
+
+    /* Live Preview */
+    .preview-panel { display: flex; flex-direction: column; gap: 12px; }
+    .preview-frame {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; position: relative;
+    }
+    .browser-chrome {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .dots { display: flex; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; } .dot-y { background: #ffbd2e; } .dot-g { background: #28c840; }
+    .chrome-url {
+      flex: 1; background: var(--bg); border-radius: 5px; padding: 4px 10px;
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .preview-img { width: 100%; display: block; min-height: 200px; background: var(--surface); }
+    .preview-loading {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      display: none; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 12px; color: var(--accent);
+    }
+    .preview-loading.visible { display: flex; }
+
+    .preview-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* ─── Waypoint Timeline ─── */
+    .timeline-section { margin-top: 0; }
+    .timeline-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .timeline-header h3 {
+      font-size: 14px; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .waypoint-count {
+      font-family: var(--mono); font-size: 12px; color: var(--muted);
+      background: var(--surface); padding: 4px 10px; border-radius: 6px;
+    }
+
+    .timeline-strip {
+      display: flex; gap: 12px; overflow-x: auto; padding: 8px 4px 16px;
+      scroll-behavior: smooth;
+    }
+    .timeline-strip::-webkit-scrollbar { height: 4px; }
+    .timeline-strip::-webkit-scrollbar-track { background: var(--surface); border-radius: 2px; }
+    .timeline-strip::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+    .wp-card {
+      flex-shrink: 0; width: 170px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; transition: border-color 0.2s, transform 0.15s;
+      cursor: grab; position: relative;
+    }
+    .wp-card:hover { border-color: rgba(124,109,250,0.3); }
+    .wp-card.dragging { opacity: 0.5; transform: scale(0.95); }
+    .wp-card.drag-over { border-color: var(--accent); transform: scale(1.02); }
+
+    .wp-thumb { width: 100%; height: 90px; object-fit: cover; display: block; pointer-events: none; }
+    .wp-num {
+      position: absolute; top: 6px; left: 6px;
+      background: rgba(0,0,0,0.7); color: var(--accent);
+      font-family: var(--mono); font-size: 10px; font-weight: 700;
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .wp-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+    .wp-coords { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+    .wp-delay-row { display: flex; align-items: center; gap: 6px; }
+    .wp-delay-label { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .wp-delay-slider {
+      flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+      background: var(--border); border-radius: 2px; outline: none;
+    }
+    .wp-delay-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px;
+      background: var(--accent); border-radius: 50%; cursor: pointer;
+    }
+    .wp-delay-val { font-family: var(--mono); font-size: 10px; color: var(--accent); min-width: 30px; text-align: right; }
+    .wp-actions { display: flex; gap: 4px; }
+    .wp-remove {
+      background: none; border: none; color: rgba(250,77,77,0.6);
+      font-size: 14px; cursor: pointer; padding: 2px 4px; border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .wp-remove:hover { color: var(--red); }
+
+    .timeline-empty {
+      text-align: center; padding: 32px; color: var(--muted);
+      font-family: var(--mono); font-size: 13px;
+      border: 1px dashed var(--border); border-radius: 10px;
+    }
+
+    /* ─── Recording Indicator ─── */
+    .rec-indicator {
+      display: none; align-items: center; gap: 10px; padding: 10px 16px;
+      background: rgba(250,77,77,0.08); border: 1px solid rgba(250,77,77,0.25);
+      border-radius: 10px; font-family: var(--mono); font-size: 13px; color: var(--red);
+    }
+    .rec-indicator.visible { display: flex; }
+    .rec-dot {
+      width: 10px; height: 10px; background: var(--red); border-radius: 50%;
+      animation: rec-pulse 1s ease-in-out infinite;
+    }
+    @keyframes rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .rec-stats { display: flex; gap: 16px; }
+    .rec-stat { display: flex; align-items: center; gap: 4px; }
+
+    .btn-rec {
+      background: rgba(250,77,77,0.15); border: 1px solid rgba(250,77,77,0.4);
+      color: var(--red); position: relative;
+    }
+    .btn-rec.recording {
+      background: var(--red); color: #fff; border-color: var(--red);
+      animation: rec-btn-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes rec-btn-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(250,77,77,0.4); } 50% { box-shadow: 0 0 0 8px rgba(250,77,77,0); } }
+
+    .btn-smooth {
+      background: rgba(124,109,250,0.12); border: 1px solid rgba(124,109,250,0.3);
+      color: var(--accent);
+    }
+
+    /* Interpolation settings inline */
+    .interp-controls {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .interp-controls .label { white-space: nowrap; }
+
+    /* Recording capture rate option */
+    .rec-rate { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+    /* Keyboard hint badge */
+    .kbd {
+      display: inline-block; padding: 1px 5px; border-radius: 4px;
+      background: var(--surface); border: 1px solid var(--border);
+      font-family: var(--mono); font-size: 10px; color: var(--muted);
+      margin-left: 4px; vertical-align: middle;
+    }
+
+    /* Waypoint keyframe badge */
+    .wp-keyframe {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(124,109,250,0.8); color: #fff;
+      font-family: var(--mono); font-size: 8px; font-weight: 700;
+      padding: 1px 5px; border-radius: 3px; text-transform: uppercase;
+    }
+
+    /* ─── Result Section ─── */
+    .result-section {
+      display: none; width: 100%; max-width: 900px;
+      flex-direction: column; align-items: center; gap: 20px;
+      margin-top: 24px;
+    }
+    .result-section.visible { display: flex; }
+    .result-label { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; align-self: flex-start; }
+    .gif-frame { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .gif-output { display: block; width: 100%; height: auto; }
+    .result-actions { display: flex; gap: 10px; }
+
+    @media (max-width: 768px) {
+      .studio-layout { grid-template-columns: 1fr; }
+      .studio-url-row { flex-direction: column; }
+      #quickPanel .input-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="wrapper">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">&#9889;</div>
+        <span class="logo-name">GIFSnap</span>
+      </div>
+      <h1>Record any website<br>as a <span>browsing GIF</span></h1>
+      <p class="subtitle">quick auto-capture or interactive studio control</p>
+    </header>
+
+    <!-- Mode Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('quick')">Quick Generate</button>
+      <button class="mode-tab" onclick="switchMode('studio')">Interactive Studio</button>
+    </div>
+
+    <!-- ═══ Quick Generate ═══ -->
+    <div id="quickPanel" class="card">
+      <div class="input-row">
+        <input class="input-field" id="qUrl" type="url" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+        <button class="btn btn-primary" id="qBtn" onclick="quickGenerate()">Generate GIF</button>
+      </div>
+      <div class="options-row">
+        <div class="option"><span>Mode</span>
+          <select class="select-field" id="qMode">
+            <option value="scroll" selected>Scroll</option>
+            <option value="corners">Corners</option>
+            <option value="browse">Full Browse</option>
+            <option value="diagonal">Diagonal</option>
+          </select>
+        </div>
+        <div class="option"><span>Frames</span>
+          <select class="select-field" id="qFrames">
+            <option value="12">12</option><option value="20" selected>20</option>
+            <option value="30">30</option><option value="40">40</option>
+          </select>
+        </div>
+        <div class="option"><span>Speed</span>
+          <select class="select-field" id="qSpeed">
+            <option value="80">Fast</option><option value="120" selected>Normal</option><option value="200">Slow</option>
+          </select>
+        </div>
+        <div class="option"><span>Width</span>
+          <select class="select-field" id="qWidth">
+            <option value="1280" selected>Desktop</option><option value="768">Tablet</option><option value="390">Mobile</option>
+          </select>
+        </div>
+      </div>
+      <div class="progress-wrap" id="qProgress"><div class="progress-fill" id="qProgressFill"></div></div>
+      <div class="status-bar" id="qStatus"><div class="spinner" id="qSpinner"></div><span id="qStatusText"></span></div>
+    </div>
+
+    <!-- ═══ Interactive Studio ═══ -->
+    <div id="studioPanel">
+      <!-- Step 1: URL Entry -->
+      <div id="studioStart" class="card" style="max-width:680px;margin:0 auto;">
+        <div class="studio-url-row">
+          <input class="input-field" id="sUrl" type="url" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+          <div class="option"><span>Width</span>
+            <select class="select-field" id="sWidth">
+              <option value="1280" selected>Desktop</option><option value="768">Tablet</option><option value="390">Mobile</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="sStartBtn" onclick="studioStart()">Open Website</button>
+        </div>
+        <div class="status-bar" id="sStartStatus"><div class="spinner"></div><span id="sStartStatusText">Loading website...</span></div>
+      </div>
+
+      <!-- Step 2: Studio Workspace -->
+      <div id="studioWorkspace" style="display:none;">
+        <div class="studio-layout">
+          <!-- Left: Minimap -->
+          <div class="minimap-panel">
+            <span class="label">PAGE MAP — click or drag to navigate</span>
+            <div class="minimap-container" id="minimapContainer">
+              <img id="minimapImg" src="" alt="Page map" draggable="false" />
+              <div class="minimap-viewport" id="minimapViewport"></div>
+            </div>
+            <div class="minimap-coords" id="minimapCoords">x: 0 &nbsp; y: 0</div>
+
+            <!-- Recording indicator -->
+            <div class="rec-indicator" id="recIndicator">
+              <div class="rec-dot"></div>
+              <span>REC</span>
+              <div class="rec-stats">
+                <div class="rec-stat"><span id="recTimer">0:00</span></div>
+                <div class="rec-stat"><span id="recFrameCount">0</span> frames</div>
+              </div>
+            </div>
+
+            <!-- Record / Capture buttons -->
+            <button class="btn btn-rec btn-sm" id="recBtn" onclick="toggleRecording()" style="width:100%">
+              Record <span class="kbd">R</span>
+            </button>
+            <button class="btn btn-green btn-sm" onclick="captureWaypoint()" style="width:100%">
+              + Capture Frame <span class="kbd">Space</span>
+            </button>
+
+            <!-- Frame delay -->
+            <div class="option" style="margin-top:4px;">
+              <span class="label">Frame delay</span>
+              <select class="select-field" id="captureDelay" style="flex:1">
+                <option value="50">50ms (very fast)</option>
+                <option value="100">100ms (fast)</option>
+                <option value="150" selected>150ms (normal)</option>
+                <option value="300">300ms (slow)</option>
+                <option value="500">500ms (pause)</option>
+                <option value="1000">1000ms (hold)</option>
+                <option value="2000">2000ms (long hold)</option>
+              </select>
+            </div>
+
+            <!-- Recording capture rate -->
+            <div class="rec-rate" id="recRateRow">
+              <span class="label">Capture rate</span>
+              <select class="select-field" id="recRate">
+                <option value="150">Fast (6 fps)</option>
+                <option value="250" selected>Normal (4 fps)</option>
+                <option value="400">Slow (2.5 fps)</option>
+                <option value="600">Very slow (1.5 fps)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Right: Live Preview -->
+          <div class="preview-panel">
+            <span class="label">LIVE VIEWPORT PREVIEW</span>
+            <div class="preview-frame">
+              <div class="browser-chrome">
+                <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+                <div class="chrome-url" id="sUrlDisplay">https://</div>
+              </div>
+              <div style="position:relative">
+                <img class="preview-img" id="previewImg" src="" alt="Live preview" draggable="false" />
+                <div class="preview-loading" id="previewLoading"><div class="spinner"></div><span>Updating...</span></div>
+              </div>
+            </div>
+            <div class="preview-controls">
+              <button class="btn btn-rec" id="recBtn2" onclick="toggleRecording()">Record <span class="kbd">R</span></button>
+              <button class="btn btn-green" onclick="captureWaypoint()">+ Capture <span class="kbd">Space</span></button>
+              <button class="btn btn-smooth btn-sm" id="smoothBtn" onclick="smoothFill()" disabled>Smooth Fill <span class="kbd">S</span></button>
+              <div class="interp-controls">
+                <span class="label">Transition frames:</span>
+                <select class="select-field" id="interpSteps">
+                  <option value="3">3 (subtle)</option>
+                  <option value="5" selected>5 (smooth)</option>
+                  <option value="8">8 (very smooth)</option>
+                  <option value="12">12 (cinematic)</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="sGenerateBtn" onclick="studioGenerate()" disabled>Generate GIF</button>
+              <button class="btn btn-danger btn-sm" onclick="studioClose()">End Session</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Waypoint Timeline -->
+        <div class="card timeline-section">
+          <div class="timeline-header">
+            <h3>Captured Frames Timeline</h3>
+            <span class="waypoint-count" id="wpCount">0 frames</span>
+          </div>
+          <div id="timelineContent">
+            <div class="timeline-empty" id="timelineEmpty">
+              <strong>Record</strong> — drag on the minimap while recording to auto-capture frames as you browse.<br>
+              <strong>Capture</strong> — click to snap individual keyframes. <strong>Smooth Fill</strong> — auto-generate transition frames.<br>
+              Drag to reorder. Adjust speed per frame. <span class="kbd">R</span> record &nbsp; <span class="kbd">Space</span> capture &nbsp; <span class="kbd">S</span> smooth fill
+            </div>
+            <div class="timeline-strip" id="timelineStrip" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Result ═══ -->
+    <div class="result-section" id="resultSection">
+      <span class="result-label">Generated Preview</span>
+      <div class="gif-frame">
+        <div class="browser-chrome">
+          <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+          <div class="chrome-url" id="resultUrl">https://</div>
+        </div>
+        <img class="gif-output" id="gifOutput" src="" alt="Generated GIF" />
+      </div>
+      <div class="result-actions">
+        <a class="btn btn-primary" id="downloadBtn" download="preview.gif">Download GIF</a>
+        <button class="btn btn-secondary" onclick="resetResult()">Try Another</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── State ────────────────────────────────────────────
+    let currentMode = 'quick';
+    let session = null;
+    let scrollThrottle = null;
+
+    // Recording state
+    let isRecording = false;
+    let recBuffer = [];         // positions collected during recording
+    let recInterval = null;     // capture tick interval
+    let recTimerInterval = null;
+    let recStartTime = 0;
+    let lastRecX = -1, lastRecY = -1; // deduplicate
+
+    // ─── Mode Switching ───────────────────────────────────
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-tab').forEach((t, i) => {
+        t.classList.toggle('active', (mode === 'quick' && i === 0) || (mode === 'studio' && i === 1));
+      });
+      document.getElementById('quickPanel').style.display = mode === 'quick' ? 'block' : 'none';
+      document.getElementById('studioPanel').classList.toggle('visible', mode === 'studio');
+      document.getElementById('studioPanel').style.display = mode === 'studio' ? 'block' : 'none';
+      document.getElementById('resultSection').classList.remove('visible');
+    }
+
+    function resetResult() {
+      document.getElementById('resultSection').classList.remove('visible');
+    }
+
+    // ─── Quick Generate ───────────────────────────────────
+    function qStatus(msg, isError) {
+      const el = document.getElementById('qStatus');
+      el.className = 'status-bar visible' + (isError ? ' error' : '');
+      document.getElementById('qStatusText').textContent = msg;
+      document.getElementById('qSpinner').style.display = isError ? 'none' : 'block';
+    }
+    function qHideStatus() { document.getElementById('qStatus').className = 'status-bar'; }
+    function qProgress(pct) {
+      document.getElementById('qProgress').classList.add('visible');
+      document.getElementById('qProgressFill').style.width = pct + '%';
+    }
+
+    async function quickGenerate() {
+      const url = document.getElementById('qUrl').value.trim();
+      if (!url || !url.startsWith('http')) { qStatus('Enter a valid URL starting with http/https', true); return; }
+
+      document.getElementById('qBtn').disabled = true;
+      document.getElementById('resultSection').classList.remove('visible');
+
+      const labels = ['Launching browser...', 'Loading website...', 'Browsing & capturing...', 'Encoding GIF...', 'Almost done...'];
+      let step = 0;
+      qStatus(labels[0]); qProgress(5);
+      const iv = setInterval(() => { step++; if (step < labels.length) { qStatus(labels[step]); qProgress(10 + step * 20); } }, 3000);
+
+      try {
+        const resp = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            frames: +document.getElementById('qFrames').value,
+            delay: +document.getElementById('qSpeed').value,
+            width: +document.getElementById('qWidth').value,
+            mode: document.getElementById('qMode').value,
+          }),
+        });
+        clearInterval(iv);
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        qProgress(95); qStatus('Finalizing...');
+        const blob = await resp.blob();
+        showResult(URL.createObjectURL(blob), url);
+        qHideStatus();
+        document.getElementById('qProgress').classList.remove('visible');
+      } catch (err) {
+        clearInterval(iv);
+        qStatus(err.message || 'Failed', true);
+        document.getElementById('qProgress').classList.remove('visible');
+      }
+      document.getElementById('qBtn').disabled = false;
+    }
+    document.getElementById('qUrl').addEventListener('keydown', e => { if (e.key === 'Enter') quickGenerate(); });
+
+    // ─── Show Result ──────────────────────────────────────
+    function showResult(objectUrl, url) {
+      document.getElementById('gifOutput').src = objectUrl;
+      document.getElementById('downloadBtn').href = objectUrl;
+      document.getElementById('resultUrl').textContent = url;
+      document.getElementById('resultSection').classList.add('visible');
+      document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ─── Studio: Start Session ────────────────────────────
+    async function studioStart() {
+      const url = document.getElementById('sUrl').value.trim();
+      if (!url || !url.startsWith('http')) return;
+
+      document.getElementById('sStartBtn').disabled = true;
+      const st = document.getElementById('sStartStatus');
+      st.className = 'status-bar visible';
+      document.getElementById('sStartStatusText').textContent = 'Launching browser & loading website...';
+
+      try {
+        const resp = await fetch('/api/session/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, width: +document.getElementById('sWidth').value }),
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        const data = await resp.json();
+
+        session = {
+          id: data.sessionId, url,
+          pageWidth: data.pageWidth, pageHeight: data.pageHeight,
+          vpWidth: data.vpWidth, vpHeight: data.vpHeight,
+          waypoints: [], scrollX: 0, scrollY: 0,
+        };
+
+        document.getElementById('minimapImg').src = 'data:image/png;base64,' + data.fullPage;
+        document.getElementById('previewImg').src = 'data:image/png;base64,' + data.viewport;
+        document.getElementById('sUrlDisplay').textContent = url;
+
+        document.getElementById('studioStart').style.display = 'none';
+        document.getElementById('studioWorkspace').style.display = 'block';
+        updateMinimapViewport();
+        st.className = 'status-bar';
+      } catch (err) {
+        st.className = 'status-bar visible error';
+        document.getElementById('sStartStatusText').textContent = err.message;
+      }
+      document.getElementById('sStartBtn').disabled = false;
+    }
+    document.getElementById('sUrl').addEventListener('keydown', e => { if (e.key === 'Enter') studioStart(); });
+
+    // ─── Minimap Interaction ──────────────────────────────
+    function updateMinimapViewport() {
+      if (!session) return;
+      const img = document.getElementById('minimapImg');
+      const vp = document.getElementById('minimapViewport');
+      const rect = img.getBoundingClientRect();
+      const scaleX = rect.width / session.pageWidth;
+      const scaleY = rect.height / session.pageHeight;
+
+      vp.style.width = (session.vpWidth * scaleX) + 'px';
+      vp.style.height = (session.vpHeight * scaleY) + 'px';
+      vp.style.left = (session.scrollX * scaleX) + 'px';
+      vp.style.top = (session.scrollY * scaleY) + 'px';
+
+      document.getElementById('minimapCoords').textContent =
+        `x: ${session.scrollX}  y: ${session.scrollY}  (${session.pageWidth} x ${session.pageHeight})`;
+    }
+
+    // Click/drag on minimap
+    document.getElementById('minimapContainer').addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      const handler = (ev) => minimapNavigate(ev);
+      handler(e);
+      document.addEventListener('mousemove', handler);
+      document.addEventListener('mouseup', () => document.removeEventListener('mousemove', handler), { once: true });
+    });
+
+    function minimapNavigate(e) {
+      if (!session) return;
+      const img = document.getElementById('minimapImg');
+      const rect = img.getBoundingClientRect();
+      const relX = (e.clientX - rect.left) / rect.width;
+      const relY = (e.clientY - rect.top) / rect.height;
+
+      const maxX = Math.max(0, session.pageWidth - session.vpWidth);
+      const maxY = Math.max(0, session.pageHeight - session.vpHeight);
+      session.scrollX = Math.round(Math.min(Math.max(relX * session.pageWidth - session.vpWidth / 2, 0), maxX));
+      session.scrollY = Math.round(Math.min(Math.max(relY * session.pageHeight - session.vpHeight / 2, 0), maxY));
+
+      updateMinimapViewport();
+
+      // If recording, buffer this position
+      if (isRecording) {
+        const dist = Math.abs(session.scrollX - lastRecX) + Math.abs(session.scrollY - lastRecY);
+        if (dist > 20) { // skip tiny movements
+          recBuffer.push({ x: session.scrollX, y: session.scrollY });
+          lastRecX = session.scrollX;
+          lastRecY = session.scrollY;
+          document.getElementById('recFrameCount').textContent = recBuffer.length;
+        }
+      }
+
+      // Update live preview
+      clearTimeout(scrollThrottle);
+      scrollThrottle = setTimeout(() => fetchScrollPreview(), 80);
+    }
+
+    async function fetchScrollPreview() {
+      if (!session) return;
+      document.getElementById('previewLoading').classList.add('visible');
+      try {
+        const resp = await fetch('/api/session/scroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, x: session.scrollX, y: session.scrollY }),
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        const data = await resp.json();
+        document.getElementById('previewImg').src = 'data:image/png;base64,' + data.viewport;
+        session.scrollX = data.x;
+        session.scrollY = data.y;
+        updateMinimapViewport();
+      } catch (err) { console.error('Scroll error:', err); }
+      document.getElementById('previewLoading').classList.remove('visible');
+    }
+
+    // ─── Recording Mode ───────────────────────────────────
+    function toggleRecording() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
+
+    function startRecording() {
+      if (!session || isRecording) return;
+      isRecording = true;
+      recBuffer = [];
+      lastRecX = session.scrollX;
+      lastRecY = session.scrollY;
+      recStartTime = Date.now();
+
+      // Capture starting position
+      recBuffer.push({ x: session.scrollX, y: session.scrollY });
+
+      // UI updates
+      const recBtns = [document.getElementById('recBtn'), document.getElementById('recBtn2')];
+      recBtns.forEach(b => { b.classList.add('recording'); b.innerHTML = 'Stop Recording <span class="kbd">R</span>'; });
+      document.getElementById('recIndicator').classList.add('visible');
+      document.getElementById('recFrameCount').textContent = '1';
+      document.getElementById('recTimer').textContent = '0:00';
+
+      // Timer display
+      recTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - recStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = String(elapsed % 60).padStart(2, '0');
+        document.getElementById('recTimer').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    async function stopRecording() {
+      if (!isRecording) return;
+      isRecording = false;
+      clearInterval(recTimerInterval);
+
+      // UI reset
+      const recBtns = [document.getElementById('recBtn'), document.getElementById('recBtn2')];
+      recBtns.forEach(b => { b.classList.remove('recording'); b.innerHTML = 'Record <span class="kbd">R</span>'; });
+      document.getElementById('recIndicator').classList.remove('visible');
+
+      if (recBuffer.length < 2) {
+        recBuffer = [];
+        return;
+      }
+
+      // Subsample if too many positions (keep it under 60 for batch endpoint)
+      let positions = recBuffer;
+      if (positions.length > 50) {
+        const step = positions.length / 50;
+        const sampled = [positions[0]];
+        for (let i = 1; i < 49; i++) {
+          sampled.push(positions[Math.round(i * step)]);
+        }
+        sampled.push(positions[positions.length - 1]);
+        positions = sampled;
+      }
+
+      const delay = +document.getElementById('captureDelay').value;
+      const positionsWithDelay = positions.map(p => ({ ...p, delay }));
+
+      // Show loading state
+      document.getElementById('previewLoading').classList.add('visible');
+      document.getElementById('recIndicator').classList.add('visible');
+      document.getElementById('recIndicator').querySelector('span').textContent = 'Processing...';
+
+      try {
+        const resp = await fetch('/api/session/batch-capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, positions: positionsWithDelay }),
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        const data = await resp.json();
+        session.waypoints = session.waypoints.concat(data.captured);
+        renderTimeline();
+      } catch (err) {
+        console.error('Batch capture error:', err);
+      }
+
+      document.getElementById('previewLoading').classList.remove('visible');
+      document.getElementById('recIndicator').classList.remove('visible');
+      recBuffer = [];
+    }
+
+    // ─── Manual Capture ───────────────────────────────────
+    async function captureWaypoint() {
+      if (!session) return;
+      const delay = +document.getElementById('captureDelay').value;
+
+      try {
+        const resp = await fetch('/api/session/waypoint/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, delay }),
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        const data = await resp.json();
+        session.waypoints.push(data.waypoint);
+        renderTimeline();
+      } catch (err) { console.error('Capture error:', err); }
+    }
+
+    // ─── Smooth Fill (Auto-Interpolate) ───────────────────
+    async function smoothFill() {
+      if (!session || session.waypoints.length < 2) return;
+
+      const steps = +document.getElementById('interpSteps').value;
+      const btn = document.getElementById('smoothBtn');
+      btn.disabled = true;
+      btn.textContent = 'Generating transitions...';
+
+      try {
+        const resp = await fetch('/api/session/interpolate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, steps }),
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        const data = await resp.json();
+        session.waypoints = data.waypoints;
+        renderTimeline();
+      } catch (err) {
+        console.error('Interpolation error:', err);
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = 'Smooth Fill <span class="kbd">S</span>';
+    }
+
+    // ─── Timeline Rendering ───────────────────────────────
+    function renderTimeline() {
+      const strip = document.getElementById('timelineStrip');
+      const empty = document.getElementById('timelineEmpty');
+      const count = document.getElementById('wpCount');
+      const genBtn = document.getElementById('sGenerateBtn');
+      const smoothBtn = document.getElementById('smoothBtn');
+
+      count.textContent = session.waypoints.length + ' frame' + (session.waypoints.length !== 1 ? 's' : '');
+      genBtn.disabled = session.waypoints.length < 2;
+      smoothBtn.disabled = session.waypoints.length < 2;
+
+      if (session.waypoints.length === 0) {
+        strip.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      strip.style.display = 'flex';
+      empty.style.display = 'none';
+      strip.innerHTML = '';
+
+      session.waypoints.forEach((wp, idx) => {
+        const card = document.createElement('div');
+        card.className = 'wp-card';
+        card.draggable = true;
+        card.dataset.idx = idx;
+
+        card.innerHTML = `
+          <img class="wp-thumb" src="data:image/png;base64,${wp.thumb}" alt="Frame ${idx + 1}" />
+          <span class="wp-num">#${idx + 1}</span>
+          <div class="wp-body">
+            <div class="wp-coords">x:${wp.x} y:${wp.y}</div>
+            <div class="wp-delay-row">
+              <span class="wp-delay-label">Delay</span>
+              <input type="range" class="wp-delay-slider" min="30" max="2000" step="10" value="${wp.delay}"
+                oninput="updateWpDelay('${wp.id}', this.value, this)" />
+              <span class="wp-delay-val">${wp.delay}ms</span>
+            </div>
+            <div class="wp-actions">
+              <button class="wp-remove" onclick="removeWaypoint('${wp.id}')" title="Remove">&times;</button>
+            </div>
+          </div>
+        `;
+
+        // Drag & drop
+        card.addEventListener('dragstart', (e) => {
+          card.classList.add('dragging');
+          e.dataTransfer.setData('text/plain', idx.toString());
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        card.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; card.classList.add('drag-over'); });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+          const toIdx = parseInt(card.dataset.idx);
+          if (fromIdx !== toIdx) reorderWaypoints(fromIdx, toIdx);
+        });
+
+        strip.appendChild(card);
+      });
+
+      strip.scrollLeft = strip.scrollWidth;
+    }
+
+    async function updateWpDelay(wpId, delay, slider) {
+      const wp = session.waypoints.find(w => w.id === wpId);
+      if (wp) {
+        wp.delay = parseInt(delay);
+        slider.parentElement.querySelector('.wp-delay-val').textContent = delay + 'ms';
+      }
+      try {
+        await fetch('/api/session/waypoint/update', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, waypointId: wpId, delay: parseInt(delay) }),
+        });
+      } catch (err) { console.error(err); }
+    }
+
+    async function removeWaypoint(wpId) {
+      session.waypoints = session.waypoints.filter(w => w.id !== wpId);
+      renderTimeline();
+      try {
+        await fetch('/api/session/waypoint/remove', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, waypointId: wpId }),
+        });
+      } catch (err) { console.error(err); }
+    }
+
+    async function reorderWaypoints(fromIdx, toIdx) {
+      const [item] = session.waypoints.splice(fromIdx, 1);
+      session.waypoints.splice(toIdx, 0, item);
+      renderTimeline();
+      try {
+        await fetch('/api/session/waypoint/reorder', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, order: session.waypoints.map(w => w.id) }),
+        });
+      } catch (err) { console.error(err); }
+    }
+
+    // ─── Studio: Generate GIF ─────────────────────────────
+    async function studioGenerate() {
+      if (!session || session.waypoints.length < 2) return;
+      document.getElementById('sGenerateBtn').disabled = true;
+      document.getElementById('sGenerateBtn').textContent = 'Generating...';
+
+      try {
+        const resp = await fetch('/api/session/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id }),
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+        const blob = await resp.blob();
+        showResult(URL.createObjectURL(blob), session.url);
+      } catch (err) {
+        alert('Generation failed: ' + err.message);
+      }
+      document.getElementById('sGenerateBtn').disabled = false;
+      document.getElementById('sGenerateBtn').textContent = 'Generate GIF';
+    }
+
+    // ─── Studio: Close Session ────────────────────────────
+    async function studioClose() {
+      if (isRecording) stopRecording();
+      if (session) {
+        try { await fetch('/api/session/close', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: session.id }) }); } catch (_) {}
+      }
+      session = null;
+      document.getElementById('studioWorkspace').style.display = 'none';
+      document.getElementById('studioStart').style.display = 'block';
+      document.getElementById('timelineStrip').innerHTML = '';
+      document.getElementById('timelineStrip').style.display = 'none';
+      document.getElementById('timelineEmpty').style.display = 'block';
+      document.getElementById('wpCount').textContent = '0 frames';
+    }
+
+    // ─── Keyboard Shortcuts ───────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      // Skip if user is typing in an input/select
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+      if (!session || currentMode !== 'studio') return;
+
+      switch (e.key.toLowerCase()) {
+        case 'r':
+          e.preventDefault();
+          toggleRecording();
+          break;
+        case ' ':
+          e.preventDefault();
+          if (!isRecording) captureWaypoint();
+          break;
+        case 's':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            if (session.waypoints.length >= 2) smoothFill();
+          }
+          break;
+        case 'enter':
+          e.preventDefault();
+          if (session.waypoints.length >= 2) studioGenerate();
+          break;
+        case 'escape':
+          if (isRecording) { e.preventDefault(); stopRecording(); }
+          break;
+        case 'arrowdown':
+          e.preventDefault();
+          session.scrollY = Math.min(session.scrollY + 100, Math.max(0, session.pageHeight - session.vpHeight));
+          updateMinimapViewport();
+          clearTimeout(scrollThrottle);
+          scrollThrottle = setTimeout(() => fetchScrollPreview(), 50);
+          if (isRecording && Math.abs(session.scrollY - lastRecY) > 20) {
+            recBuffer.push({ x: session.scrollX, y: session.scrollY });
+            lastRecY = session.scrollY;
+            document.getElementById('recFrameCount').textContent = recBuffer.length;
+          }
+          break;
+        case 'arrowup':
+          e.preventDefault();
+          session.scrollY = Math.max(session.scrollY - 100, 0);
+          updateMinimapViewport();
+          clearTimeout(scrollThrottle);
+          scrollThrottle = setTimeout(() => fetchScrollPreview(), 50);
+          if (isRecording && Math.abs(session.scrollY - lastRecY) > 20) {
+            recBuffer.push({ x: session.scrollX, y: session.scrollY });
+            lastRecY = session.scrollY;
+            document.getElementById('recFrameCount').textContent = recBuffer.length;
+          }
+          break;
+        case 'arrowleft':
+          e.preventDefault();
+          session.scrollX = Math.max(session.scrollX - 100, 0);
+          updateMinimapViewport();
+          clearTimeout(scrollThrottle);
+          scrollThrottle = setTimeout(() => fetchScrollPreview(), 50);
+          break;
+        case 'arrowright':
+          e.preventDefault();
+          session.scrollX = Math.min(session.scrollX + 100, Math.max(0, session.pageWidth - session.vpWidth));
+          updateMinimapViewport();
+          clearTimeout(scrollThrottle);
+          scrollThrottle = setTimeout(() => fetchScrollPreview(), 50);
+          break;
+      }
+    });
+  </script>
+</body>
+</html>
